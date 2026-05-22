@@ -70,19 +70,31 @@ def minimize_marginals(graph, initial_estimate, pose_options):
     return best_pose, best_landmark, sum_of_marginals
 
         
-  
 def minimize_errors(graph, initial_estimate, pose_options):
-    #TODO: try different pose and landmark options here, and keep the one with the lowest resulting error.
-    best_pose = "a"      # chosen pose option
-    best_landmark = 1    # chosen landmark (1 or 2)
-    pose_5 = pose_options[best_pose]
-    graph, initial_estimate = add_pose(graph, initial_estimate, pose_5)
-    result = optimize(graph, initial_estimate)
-    graph = add_landmark_measurement(graph, result, pose_5, best_landmark)
-    result = optimize(graph, initial_estimate)
+    best_pose = None
+    best_landmark = None
+    sum_of_errors = float("inf")
+    
+    for key, pose in pose_options.items():
+        for landmark in [1, 2]:
+            g = copy.deepcopy(graph)
+            est = copy.deepcopy(initial_estimate)
+            g, est = add_pose(g, est, pose)
+            result = optimize(g, est)
+            g = add_landmark_measurement(g, result, pose, landmark)
+            result = optimize(g, est)
 
-    # TODO: create a list of errors (each index corresponds to a pose) and add the error of each pose to the list
-    list_of_errors = []
-    # TODO: compute the sum of the errors and return it along with the best pose and landmark
-    sum_of_errors = 0
-    return best_pose, best_landmark, sum_of_errors 
+            true_x = [0, 2, 4]
+            list_of_errors = []
+            for i, true in zip([1, 2, 3], true_x):
+                pose_i = result.atPose2(X(i))
+                error = abs(pose_i.x() - true) + abs(pose_i.y()) + abs(pose_i.theta())
+                list_of_errors.append(error)
+            total = sum(list_of_errors)
+
+            if total < sum_of_errors:
+                sum_of_errors = total
+                best_pose = key
+                best_landmark = landmark
+
+    return best_pose, best_landmark, sum_of_errors
